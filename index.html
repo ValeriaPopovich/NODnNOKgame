@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>НОД vs НОК — мини-игра</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#fff7f1;
+    --bg2:#f0fff6;
+    --brand:#76d47b;
+    --brand-2:#ffb17a;
+    --ink:#1d2433;
+    --muted:#718097;
+    --good:#3bb273;
+    --bad:#ff6b6b;
+    --card:#ffffffaa;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family: Montserrat, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at -10% -10%, var(--bg2), transparent 60%),
+      radial-gradient(1000px 500px at 110% 110%, var(--bg1), transparent 60%),
+      linear-gradient(135deg, #fefefe, #f9fff9 40%, #fff7f1);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+
+  .app{
+    width:min(920px, 100%);
+    background:var(--card);
+    backdrop-filter: blur(10px);
+    border:1px solid #fff3;
+    border-radius:24px;
+    box-shadow: 0 20px 60px #0001, inset 0 1px 0 #fff6;
+    padding: clamp(16px, 3vw, 28px);
+  }
+
+  .row{display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+  .title{
+    font-weight:800; font-size: clamp(22px, 3.6vw, 34px);
+    display:flex; align-items:center; gap:12px; margin:8px 0 2px;
+  }
+  .chip{
+    font-weight:700; font-size:12px; letter-spacing:.6px; text-transform:uppercase;
+    color:#0a4020; background:linear-gradient(90deg, #b5f3b3, #ffe1bd);
+    padding:6px 10px; border-radius:999px; border:1px solid #fff8;
+  }
+
+  .progress{
+    height:10px; background:#e8eef3; border-radius:999px; overflow:hidden; position:relative;
+  }
+  .bar{height:100%; width:0%; background:linear-gradient(90deg, var(--brand), var(--brand-2)); transition:width .35s}
+
+  .card{
+    background:#fff; border:1px solid #eef2f7; border-radius:20px; padding:18px; margin-top:16px;
+    box-shadow:0 8px 24px #0000000a;
+  }
+
+  .task{font-size: clamp(16px, 2.2vw, 20px); line-height:1.5;}
+  .options{display:flex; gap:12px; margin-top:14px; flex-wrap:wrap}
+  .btn{appearance:none; border:none; cursor:pointer; border-radius:14px;
+    padding:12px 18px; font-weight:700; font-size:16px;
+    transition:.2s; background:#f4faf6; color:#0e3b22; border:1px solid #e5f4ea;}
+  .btn:hover{transform:translateY(-1px); box-shadow:0 8px 20px #0001}
+  .btn.brand{background:linear-gradient(90deg, var(--brand), var(--brand-2)); color:#0a2a17; border:none}
+  .btn.alt{background:#fff6ee; color:#5a2c00; border:1px solid #ffe3cc}
+  .btn.small{padding:10px 14px; font-size:14px; border-radius:10px}
+
+  .hidden{display:none}
+  .answer-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px}
+  input[type="number"]{width:160px; padding:12px 14px; border-radius:12px; border:1px solid #e0e6ed; font-size:16px; outline:none;}
+  .hint{margin-top:10px; color:var(--muted); font-size:14px;}
+  .score{font-weight:700; color:#184a2f; display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+  .tag{padding:6px 10px; border-radius:999px; font-size:13px; background:#f1fff4; border:1px solid #ddf6e1}
+  .toast{margin-top:10px; font-weight:700}
+  .ok{color:var(--good)} .bad{color:var(--bad)}
+  .footer{margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; color:#567; font-size:13px;}
+  .sign{font-weight:700; color:#1e5a36}
+  .pill{background:#f3f8ff; border:1px solid #e2ecff; padding:8px 12px; border-radius:999px}
+
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  .shake{animation:shake .4s}
+  @media (max-width:560px){.answer-row{flex-direction:column; align-items:stretch} input[type="number"]{width:100%}}
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="row">
+      <span class="chip">игра-тренажёр</span>
+      <div class="title">НОД <span style="opacity:.5">vs</span> НОК</div>
+    </div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="row" style="margin-top:12px; justify-content:space-between">
+      <div class="score">
+        <span class="tag">Задание: <b id="step">1</b>/10</span>
+        <span class="tag">Очки: <b id="pts">0</b></span>
+        <span class="tag">Серии: <b id="streak">0</b></span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn small alt" id="restart">Сброс</button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="prompt" class="task">…</div>
+      <div id="choose" class="options">
+        <button type="button" class="btn brand" data-choice="gcd">Выбрать НОД</button>
+        <button type="button" class="btn alt" data-choice="lcm">Выбрать НОК</button>
+      </div>
+      <div id="solve" class="hidden">
+        <div class="hint" id="what"></div>
+        <div class="answer-row">
+          <input id="answer" type="number" placeholder="введите ответ" />
+          <button type="button" id="check" class="btn brand">Проверить</button>
+          <button type="button" id="skip" class="btn small alt">Пропустить</button>
+        </div>
+        <div id="toast" class="toast"></div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="pill">Совет: сначала верно выбери НОД/НОК ✨</div>
+      <div class="sign">@lera_easy_math</div>
+    </div>
+  </div>
+<script>
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+const lcm=(a,b)=>Math.abs(a/gcd(a,b)*b);
+const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+
+function pairForGCD(){const g=rand(2,12);return[g*rand(2,8),g*rand(2,8)];}
+function pairForLCM(){const base=rand(2,5);const p=pick([2,3,5,7].filter(x=>x!==base));const q=pick([2,3,4,5,6,7,8,9].filter(x=>gcd(x,p)===1));return[base*p,base*q];}
+
+function makePlan(n){
+  let left={gcd:Math.floor(n/2), lcm:n-Math.floor(n/2)}, out=[];
+  while(out.length<n){
+    let opts=[];
+    if(left.gcd>0) opts.push('gcd');
+    if(left.lcm>0) opts.push('lcm');
+    if(out.length>=2 && out.at(-1)===out.at(-2)){
+      opts = opts.filter(t=>t!==out.at(-1));
+    }
+    if(opts.length===0){
+      if(left.gcd>0 && left.lcm===0) opts=['gcd'];
+      else if(left.lcm>0 && left.gcd===0) opts=['lcm'];
+      else opts=['gcd','lcm'];
+    }
+    const t=pick(opts);
+    out.push(t);
+    left[t]--;
+  }
+  return out;
+}
+
+const TOTAL=10;let step=1,points=0,streak=0,scenario=null,chosen=null,plan=makePlan(TOTAL);
+
+function makeScenario(type){const [a,b]=(type==='gcd')?pairForGCD():pairForLCM();const gcdPrompts=[[`Есть ${a} и ${b} предметов. Разделить поровну без остатка. Что используем? Найди максимальное число групп.`,`Число групп`]];const lcmPrompts=[[`События повторяются каждые ${a} и ${b} минут. Что используем? Найди через сколько минут они совпадут.`,`Время совпадения`]];const source=(type==='gcd')?pick(gcdPrompts):pick(lcmPrompts);return{type,a,b,text:source[0],label:source[1],answer:(type==='gcd')?gcd(a,b):lcm(a,b)};}
+
+const $=s=>document.querySelector(s);
+const prompt=$('#prompt'),choose=$('#choose'),solve=$('#solve'),what=$('#what'),answer=$('#answer'),check=$('#check'),skip=$('#skip'),toast=$('#toast'),pts=$('#pts'),stp=$('#step'),str=$('#streak'),bar=$('#bar');
+
+function setProgress(){stp.textContent=step;pts.textContent=points;str.textContent=streak;bar.style.width=((step-1)/TOTAL)*100+'%';}
+function nextTask(){if(step>TOTAL){endGame();return;}chosen=null;scenario=makeScenario(plan[step-1]);prompt.textContent=scenario.text;choose.classList.remove('hidden');solve.classList.add('hidden');toast.textContent='';answer.value='';setProgress();}
+function endGame(){prompt.innerHTML=`Готово! Очки: <b>${points}</b> из <b>${TOTAL*2}</b>`;choose.classList.add('hidden');solve.classList.add('hidden');toast.innerHTML='<span class="ok">Конец!</span> Жми «Сброс».';bar.style.width='100%';}
+
+choose.addEventListener('click',e=>{const btn=e.target.closest('button[data-choice]');if(!btn)return;const choice=btn.dataset.choice;if(choice===scenario.type){points++;streak++;toast.innerHTML='<span class="ok">Верно!</span> Теперь реши: '+scenario.label;what.textContent=(choice==='gcd'?`НОД(${scenario.a},${scenario.b})`:`НОК(${scenario.a},${scenario.b})`);choose.classList.add('hidden');solve.classList.remove('hidden');answer.focus();}else{streak=0;toast.innerHTML='<span class="bad">Неверно!</span> НОД — делим поровну, НОК — совпадём.';choose.classList.add('shake');setTimeout(()=>choose.classList.remove('shake'),500);}setProgress();});
+
+check.addEventListener('click',()=>{if(chosen==null)chosen=scenario.type;const val=Number(answer.value);if(val===scenario.answer){points++;toast.innerHTML='<span class="ok">Отлично!</span>';step++;setTimeout(nextTask,650);}else{streak=0;toast.innerHTML='<span class="bad">Неверно.</span>'; }setProgress();});
+
+skip.addEventListener('click',()=>{toast.innerHTML='Правильный ответ: <b>'+scenario.answer+'</b>';step++;setTimeout(nextTask,800);});
+$('#restart').addEventListener('click',()=>{step=1;points=0;streak=0;plan=makePlan(TOTAL);bar.style.width='0%';nextTask();});
+
+nextTask();
+</script>
+</body>
+</html>
